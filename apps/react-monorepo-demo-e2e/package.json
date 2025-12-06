@@ -1,0 +1,10 @@
+{
+  "name": "@react-monorepo-demo/react-monorepo-demo-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@react-monorepo-demo/react-monorepo-demo"
+    ]
+  }
+}
