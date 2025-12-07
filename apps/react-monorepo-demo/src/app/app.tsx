@@ -1,10 +1,12 @@
-import NxWelcome from './nx-welcome';
+import NxWelcome from './pages/nx-welcome/nx-welcome';
+import GameTable from './pages/game-table/game-table';
 
 import { Route, Routes, Link } from 'react-router-dom';
 
 export function App() {
   return (
     <div>
+      <GameTable />
       <NxWelcome title="@react-monorepo-demo/react-monorepo-demo" />
 
       {/* START: routes */}
