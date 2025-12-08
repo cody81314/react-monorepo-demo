@@ -9,7 +9,9 @@
       "node",
       "vitest"
     ],
-    "jsx": "react-jsx"
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "forceConsistentCasingInFileNames": true
   },
   "include": [
     "vite.config.ts",

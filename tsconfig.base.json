@@ -16,6 +16,9 @@
     "skipLibCheck": true,
     "strict": true,
     "target": "es2022",
-    "customConditions": ["@react-monorepo-demo/source"]
+    "customConditions": ["@react-monorepo-demo/source"],
+    "paths": {
+      "@react-monorepo-demo/shared-types": ["./libs/shared-types/src/index.ts"]
+    }
   }
 }

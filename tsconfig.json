@@ -10,7 +10,7 @@
       "path": "./apps/react-monorepo-demo"
     },
     {
-      "path": "./libs/demo-lib"
+      "path": "./libs/shared-types"
     }
   ]
 }

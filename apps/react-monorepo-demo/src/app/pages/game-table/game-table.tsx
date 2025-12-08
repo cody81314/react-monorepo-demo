@@ -1,10 +1,62 @@
+import { useState } from 'react';
+import {
+  Player,
+  Position,
+  RoundState,
+  Wind,
+} from '@react-monorepo-demo/shared-types';
+import PlayerSeat from './components/player-seat';
 
 export function GameTable() {
+  const [players, setPlayers] = useState<Player[]>([
+    {
+      id: 'A',
+      name: 'Player A',
+      position: Position.Bottom,
+      score: 0,
+      avatarUrl: 'https://picsum.photos/100/100?random=1',
+    },
+    {
+      id: 'B',
+      name: 'Player B',
+      position: Position.Right,
+      score: 0,
+      avatarUrl: 'https://picsum.photos/100/100?random=2',
+    },
+    {
+      id: 'C',
+      name: 'Player C',
+      position: Position.Top,
+      score: 0,
+      avatarUrl: 'https://picsum.photos/100/100?random=3',
+    },
+    {
+      id: 'D',
+      name: 'Player D',
+      position: Position.Left,
+      score: 0,
+      avatarUrl: 'https://picsum.photos/100/100?random=4',
+    },
+  ]);
+
+  const [roundState, setRoundState] = useState<RoundState>({
+    prevailingWind: Wind.East,
+    dealerId: 'A', // Start with Player A
+    renchan: 0,
+    dealerSequence: 0,
+  });
+
   return (
     <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center relative select-none overflow-hidden font-sans">
       {/* Background Texture */}
-      <div className="absolute inset-0 opacity-10 pointer-events-none"
-           style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, gray 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
+      <div
+        className="absolute inset-0 opacity-10 pointer-events-none"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 2px 2px, gray 1px, transparent 0)',
+          backgroundSize: '40px 40px',
+        }}
+      ></div>
 
       {/* Top HUD */}
       <div className="absolute top-0 w-full p-4 flex flex-col items-center z-30 pointer-events-none gap-2">
@@ -15,14 +67,17 @@ export function GameTable() {
           </h1>
           <div className="h-4 w-px bg-slate-600"></div>
           <div className="text-xs text-slate-400 flex gap-2">
-            <span>底: <span className="text-white font-mono">100</span></span>
-            <span>台: <span className="text-white font-mono">20</span></span>
+            <span>
+              底: <span className="text-white font-mono">100</span>
+            </span>
+            <span>
+              台: <span className="text-white font-mono">20</span>
+            </span>
           </div>
         </div>
 
         {/* Active Hand Status Banner */}
         {/* TODO Hand Status Banner */}
-
       </div>
 
       {/* Main 2.5D Table Area */}
@@ -34,18 +89,39 @@ export function GameTable() {
 
           {/* Center Info (Round & Dealer) */}
           <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-0 transform -rotate-12 opacity-80">
-            <div className="text-6xl font-black text-emerald-900/40 select-none tracking-widest whitespace-nowrap">東風東</div>
+            <div className="text-6xl font-black text-emerald-900/40 select-none tracking-widest whitespace-nowrap">
+              東風東
+            </div>
             {/* TODO 連莊 > 0 */}
-            { (
-              <div className="text-4xl font-bold text-red-900/30 mt-2 select-none">連 1</div>
-            )}
+            {
+              <div className="text-4xl font-bold text-red-900/30 mt-2 select-none">
+                連 1
+              </div>
+            }
             {/* Decorative Center */}
             <div className="absolute w-32 h-32 border-4 border-emerald-900/20 rounded-lg"></div>
           </div>
 
+          {/* Players */}
+          {players.map((player) => (
+            <PlayerSeat
+              key={player.id}
+              player={player}
+              isDealer={player.id === roundState.dealerId}
+              renchanCount={
+                player.id === roundState.dealerId ? roundState.renchan : 0
+              }
+              // TODO
+              // // Pass transactions waiting for THIS player to confirm
+              // pendingTransactions={currentHandTransactions.filter(
+              //   (t) => t.toId === player.id && !t.confirmed
+              // )}
+              // onConfirmTransaction={handleConfirmTransaction}
+              // onConfirmAll={handleConfirmAllTransactions}
+            />
+          ))}
         </div>
       </div>
-
     </div>
   );
 }
