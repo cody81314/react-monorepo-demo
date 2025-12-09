@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "composite": true,
     "declarationMap": true,
     "emitDeclarationOnly": true,
@@ -18,7 +19,8 @@
     "target": "es2022",
     "customConditions": ["@react-monorepo-demo/source"],
     "paths": {
-      "@react-monorepo-demo/shared-types": ["./libs/shared-types/src/index.ts"]
+      "@react-monorepo-demo/shared-types": ["./libs/shared-types/src/index.ts"],
+      "@react-monorepo-demo/mahjong-logic": ["./libs/mahjong-logic/src/index.ts"]
     }
   }
 }
