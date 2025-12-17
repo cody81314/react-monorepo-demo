@@ -1,3 +1,8 @@
+Project MJ_TOP {
+  database_type: ''
+  note : '麻將計分/揪咖'
+}
+
 Enum end_type {
   tsumo [note:'自摸']
   ron [note:'胡牌']
@@ -17,10 +22,10 @@ Enum pay_reason {
 Enum win_type {
   ron [note:'胡牌']
   tsumo [note:'自摸']
-  bap [note:'包牌']
+  bao [note:'包牌']
 }
 /*
-Enum card_type {
+Enum point_type {
   自摸
   單吊
   邊張
@@ -43,61 +48,129 @@ Enum card_type {
   MIGI
 }
 */
-
-Project MJ_TOP {
-  database_type: 'my sql'
-  note : 'gogogo'
+Enum account_status {
+  ACTIVE
+  BANNED
 }
 
 // --- Tables ---
 Table users [note: '使用者/玩家'] {
   id bigint [pk, increment]
+  public_id varchar [note:'公開,加好友可用']
   name varchar [not null]
-  nickname varchar [null]
-  phone_hash varchar [unique]
-  is_guest boolean [default:false,note:'為了臨時玩家']
+  nickname varchar [null,note:'優先顯示此名稱']
+  avatar_url varchar [null,note:'大頭貼']
+  is_guest boolean [not null,default:true,note:'是否為訪客']
+  bio varchar [null,note:'簡介']
+  status account_status [note:'帳號狀態']
   created_at timestamp [default: `now()`]
-  last_login_at timestamp
+  indexes {
+    public_id [unique]
+  }
 }
 
-Table places [note: '場地(揪咖可用)'] {
+Table user_identities [note:'使用者綁定資料 1-to-N'] {
+  id integer [pk]
+  user_id integer
+  identity_type varchar [note: 'phone, google, apple, meta']
+  identity_id varchar [note: ' unique id ']
+  email varchar [note: '如果是社群登入，這裡存對方的 email 備查']
+  created_at timestamp
+  last_login_at timestamp
+  Indexes {
+    (identity_type, identity_id) [unique]
+  }
+}
+
+//揪咖、牌局
+Table places [note: '場地'] {
   id bigint [pk, increment]
   user_id bigint
   name varchar
+  location varchar [note:'粗略地址 e.g.台北101附近']
   zip_code varchar [note: '郵遞區號']
-  address varchar
+  address varchar [note:'詳細地址 欲參加者批准後才能看見']
+  memo varchar [note:'簡述 e.g.內有貓咪']
+}
+//template、揪咖資訊、開局
+Table rules [note:'規則表(逐列式)'] {
+  id bigint [pk, increment]
+  seq int [default:1,note:'pk,也可用來排序']
+  content varchar
+  user_id bigint [null,note:'使用者自定義']
+  match_id bigint [null,note:'牌局的規則']
+  invite_id bigint [null,note:'揪咖的規則']
+  indexes {
+    (id,seq) [pk]
+  }
+}
+//template、揪咖資訊、開局
+Table points [note:'台數表'] {
+  id bigint [pk,increment]
+  type varchar [note:'from codes.code_type=\'point\')']
+  point int
+  user_id bigint [null,note:'使用者自定義']
+  match_id bigint [null,note:'牌局的台數表']
+  invite_id bigint [null,note:'揪咖的台數表']
+  indexes {
+    (id,type) [pk]
+  }
 }
 
 Table matches [note: '牌局'] { 
   id bigint [pk, increment]
-  user_id int [note: '開局者/主揪']
-  place_id bigint
-  match_date timestamp
-  base int [note: '底']
-  point int [note: '台']
-  is_eye boolean [note: '是否眼牌']
-  eye_point int [note: '眼牌台數']
-  is_kala boolean [note: '是否有卡拉碰']
-  kala_point int [note: '卡拉碰台數']
-  is_venue boolean [note: '是否收東']
-  venue_type int [note: '東的類型: 無限東/東n把']
+  user_id int [not null,note: '開局者/主揪']
+  place_id bigint [not null]
+  rule_id bigint [not null]
+  point_id bigint [not null]
+  match_date timestamp [default: `now()`]
+  players int [default: 4,note:'P人麻將,可用來計風']
+  base int [not null,note: '底']
+  point int [not null,note: '台']
+  status int [default:0 ,note: '牌局狀態: 0:待開始,1:進行中,98:強制結束,99:結束']
+  is_double_win boolean [note:'是否雙響']
+  is_triple_win boolean [note:'是否三響']
+  eye_point int [default:0 ,note: '眼牌台數 0:沒有']
+  kala_point int [default:0 ,note: '卡拉碰台數 0:沒有']
+  venue_type int [note: '東的類型: 0:不收東 1:無上限 2:有上限(不補) 3:有上限(補)']
+  venue_times int [null,note: '每將東錢的次數 , null for 無上限']
   venue_fee int [note: '每次東的費用']
-  venue_limit int [note: '每將東錢的上限']
+  started_at timestamp
+  ended_at timestamp
+}
+
+Table match_player [note: '牌局玩家']{
+  match_id bigint
+  player_id bigint [note:'包含開局者']
+  permission int [default: 0, note: '牌局權限']
+  indexes {
+    (match_id, player_id) [pk]
+  }
+}
+
+Table match_venue [note:'東錢表,match prefix 是避免有將以外的東錢']{
+  match_id bigint
+  round_id bigint [null,note:'其它費用,則為null']
+  game_id bigint [null,note:'哪一把牌局產生的東錢']
+  payer_id bigint [note:'付款人通常為自摸者/胡牌者(補東)']
+  payee_id bigint [null,note:'收款人(場主id,null表示公基金)']
+  amount int
 }
 
 Table rounds [note: '將'] {
   id bigint [pk, increment]
   match_id bigint
-  round "tinyint unsigned" [note: '第幾將']
+  round int [default: 1,note: '第幾將']
+  started_at timestamp [default:`now()`]
+  ended_at timestamp [null]
 }
 
-Table round_player [note: '每將的玩家']{
+Table round_player [note: '每將的玩家(但要包含場主)']{
   round_id bigint
-  user_id int
-  seat tinyint [note: '1:東, 2:南 , 3:西 , 4:北']
-  permission tinyint [default: 0, note: '牌局權限']
+  player_id bigint
+  seat int [note: '1:東, 2:南 , 3:西 , 4:北 考慮到多人打一家,故不納入pk']
   indexes {
-    (round_id, user_id) [pk]
+    (round_id, player_id) [pk]
   }
 }
 
@@ -105,38 +178,68 @@ Table games [note: '局'] {
   id bigint [pk, increment]
   round_id bigint
   dealer_id int [note: '莊家']
-  wind tinyint [note: '風圈 (1:東, 2:南 , 3:西 , 4:北)']
-  wind_num tinyint [note: '風位 (1:東, 2:南 , 3:西 , 4:北)']
+  wind int [note: '風圈 (1:東, 2:南 , 3:西 , 4:北)']
+  wind_num int [note: '風位 (1:東, 2:南 , 3:西 , 4:北)']
   continues int [default: 0, note: '連莊數']
   end_type end_type [null, note:'null:進行中,有值:已結算']
+  started_at timestamp [default:`now()`]
+  ended_at timestamp [null]
 }
 
-Table game_record [note: '收付狀況,一把可能有多筆'] {
+Table game_record [note: '收付狀況,1-to-N'] {
   id bigint [pk, increment]
   game_id bigint
   pay_reason pay_reason [note:'付款原因']
   payer_id bigint [note:'付款者']
   payee_id bigint [note:'收款者']
-  points int
+  base int [default:1,note:'卡拉碰,眼牌,則為0']
+  point int
+  fold int [default:1,note:'倍數,for 骰規']
   amount int
 }
+// 收益結算 = 收錢總額 - (付錢總額 - 場地費總額)
+// 正項：select sum(amount) from game_record groub by payee_id
+// 負項：select sum(amount) from game_record groub by payer_id
+// 負項：select sum(amount) from match_venue group by payer_id
 
-Table game_wins [note: '胡牌紀錄'] {
+Table game_wins [note: '胡牌紀錄,1-to-1'] {
   id bigint [pk, increment]
   game_id bigint
-  winner_id bigint [note: '收錢者']
+  winner_id bigint [note: '自摸/胡牌者']
   loser_id bigint [note: '放槍者，自摸則為 null']
   win_type win_type
   total_point int [note: '總台數']
 }
 
-Table game_win_detail [note: '胡牌牌型明細'] {
+Table game_wins_detail [note: '胡牌牌型明細'] {
   win_id bigint
-  card_type card_type
+  point_type varchar
   points int [note: '該牌型的台數']
 }
 
+Table codes [note:'代碼檔'] {
+  code_type varchar [note:'wind,point']
+  code varchar
+  content varchar
+  created_at timestamp
+  indexes {
+    (code_type,code) [pk]
+  }
+}
+
+// Table Grouop
+TableGroup mj_matches  {
+  matches
+  rounds
+  games
+  game_record
+  game_wins
+  game_wins_detail
+}
+
+
 // --- Relationships ---
+Ref: users.id < user_identities.user_id
 
 Ref: users.id < matches.user_id
 
@@ -146,9 +249,13 @@ Ref: places.id < matches.place_id
 
 Ref: matches.id < rounds.match_id
 
+Ref: matches.id < match_player.match_id
+
 Ref: rounds.id < round_player.round_id
 
-Ref: users.id < round_player.user_id 
+Ref: users.id < round_player.player_id 
+
+Ref: match_player.player_id - round_player.player_id
 
 Ref: rounds.id < games.round_id 
 
@@ -158,4 +265,16 @@ Ref: games.id < game_record.game_id
 
 Ref: games.id < game_wins.game_id
 
-Ref: game_wins.id < game_win_detail.win_id
+Ref: game_wins.id < game_wins_detail.win_id
+
+Ref: users.id < rules.user_id
+
+Ref: users.id < points.user_id
+
+Ref: matches.id < rules.match_id
+
+Ref: matches.id < points.match_id
+
+Ref: matches.id < match_venue.match_id
+
+Ref: rounds.id < match_venue.round_id
