@@ -1,0 +1,161 @@
+Enum end_type {
+  tsumo [note:'自摸']
+  ron [note:'胡牌']
+  draw [note:'流局']
+  fake_ron [note:'詐胡']
+}
+
+Enum pay_reason {
+  tsumo [note:'自摸']
+  ron [note:'胡牌']
+  bao [note:'包牌(賠錢:二次相公,惡意相公,吊碰)']
+  fake_ron [note:'詐胡']
+  punish [note:'罰款']
+  adjustment [note:'修正']
+}
+
+Enum win_type {
+  ron [note:'胡牌']
+  tsumo [note:'自摸']
+  bap [note:'包牌']
+}
+/*
+Enum card_type {
+  自摸
+  單吊
+  邊張
+  中洞
+  門清
+  槓上
+  平胡
+  花槓
+  不求
+  半求
+  全求
+  碰碰胡
+  三暗刻
+  四暗刻
+  五暗刻
+  小三元
+  大三元
+  小四喜
+  大四喜
+  MIGI
+}
+*/
+
+Project MJ_TOP {
+  database_type: 'my sql'
+  note : 'gogogo'
+}
+
+// --- Tables ---
+Table users [note: '使用者/玩家'] {
+  id bigint [pk, increment]
+  name varchar [not null]
+  nickname varchar [null]
+  phone_hash varchar [unique]
+  is_guest boolean [default:false,note:'為了臨時玩家']
+  created_at timestamp [default: `now()`]
+  last_login_at timestamp
+}
+
+Table places [note: '場地(揪咖可用)'] {
+  id bigint [pk, increment]
+  user_id bigint
+  name varchar
+  zip_code varchar [note: '郵遞區號']
+  address varchar
+}
+
+Table matches [note: '牌局'] { 
+  id bigint [pk, increment]
+  user_id int [note: '開局者/主揪']
+  place_id bigint
+  match_date timestamp
+  base int [note: '底']
+  point int [note: '台']
+  is_eye boolean [note: '是否眼牌']
+  eye_point int [note: '眼牌台數']
+  is_kala boolean [note: '是否有卡拉碰']
+  kala_point int [note: '卡拉碰台數']
+  is_venue boolean [note: '是否收東']
+  venue_type int [note: '東的類型: 無限東/東n把']
+  venue_fee int [note: '每次東的費用']
+  venue_limit int [note: '每將東錢的上限']
+}
+
+Table rounds [note: '將'] {
+  id bigint [pk, increment]
+  match_id bigint
+  round "tinyint unsigned" [note: '第幾將']
+}
+
+Table round_player [note: '每將的玩家']{
+  round_id bigint
+  user_id int
+  seat tinyint [note: '1:東, 2:南 , 3:西 , 4:北']
+  permission tinyint [default: 0, note: '牌局權限']
+  indexes {
+    (round_id, user_id) [pk]
+  }
+}
+
+Table games [note: '局'] {
+  id bigint [pk, increment]
+  round_id bigint
+  dealer_id int [note: '莊家']
+  wind tinyint [note: '風圈 (1:東, 2:南 , 3:西 , 4:北)']
+  wind_num tinyint [note: '風位 (1:東, 2:南 , 3:西 , 4:北)']
+  continues int [default: 0, note: '連莊數']
+  end_type end_type [null, note:'null:進行中,有值:已結算']
+}
+
+Table game_record [note: '收付狀況,一把可能有多筆'] {
+  id bigint [pk, increment]
+  game_id bigint
+  pay_reason pay_reason [note:'付款原因']
+  payer_id bigint [note:'付款者']
+  payee_id bigint [note:'收款者']
+  points int
+  amount int
+}
+
+Table game_wins [note: '胡牌紀錄'] {
+  id bigint [pk, increment]
+  game_id bigint
+  winner_id bigint [note: '收錢者']
+  loser_id bigint [note: '放槍者，自摸則為 null']
+  win_type win_type
+  total_point int [note: '總台數']
+}
+
+Table game_win_detail [note: '胡牌牌型明細'] {
+  win_id bigint
+  card_type card_type
+  points int [note: '該牌型的台數']
+}
+
+// --- Relationships ---
+
+Ref: users.id < matches.user_id
+
+Ref: users.id < places.user_id
+
+Ref: places.id < matches.place_id 
+
+Ref: matches.id < rounds.match_id
+
+Ref: rounds.id < round_player.round_id
+
+Ref: users.id < round_player.user_id 
+
+Ref: rounds.id < games.round_id 
+
+Ref: users.id < games.dealer_id
+
+Ref: games.id < game_record.game_id
+
+Ref: games.id < game_wins.game_id
+
+Ref: game_wins.id < game_win_detail.win_id
