@@ -5,9 +5,13 @@
   "scripts": {},
   "private": true,
   "dependencies": {
+    "@firebase-oss/ui-react": "7.0.0-beta",
+    "firebase": "^12.7.0",
+    "firebaseui": "^6.1.0",
     "lucide-react": "^0.556.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-firebaseui": "^6.0.0",
     "react-router-dom": "6.29.0"
   },
   "devDependencies": {
