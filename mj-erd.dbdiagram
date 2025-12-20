@@ -11,6 +11,12 @@
       "y": 50
     },
     {
+      "name": "user_providers",
+      "schemaName": "public",
+      "x": 19.087040232152567,
+      "y": 882
+    },
+    {
       "name": "places",
       "schemaName": "public",
       "x": 21.114438508686263,
@@ -92,6 +98,21 @@
   "tableGroupCollapseStates": [],
   "stickyNoteLayouts": [],
   "referencePaths": [
+    {
+      "firstFieldNames": [
+        "id"
+      ],
+      "firstTableName": "users",
+      "firstSchemaName": "public",
+      "firstRelation": "1",
+      "secondFieldNames": [
+        "user_id"
+      ],
+      "secondTableName": "user_providers",
+      "secondSchemaName": "public",
+      "secondRelation": "*",
+      "checkPoints": []
+    },
     {
       "firstFieldNames": [
         "id"

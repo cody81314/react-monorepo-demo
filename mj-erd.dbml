@@ -1,6 +1,8 @@
-Project MJ_TOP {
-  database_type: ''
-  note : '麻將計分/揪咖'
+Project APP_JMJ {
+  database_type: 'PostgreSQL'
+  note : '''
+  揪麻紀-JMJ 
+  '''
 }
 
 Enum end_type {
@@ -15,15 +17,10 @@ Enum pay_reason {
   ron [note:'胡牌']
   bao [note:'包牌(賠錢:二次相公,惡意相公,吊碰)']
   fake_ron [note:'詐胡']
-  punish [note:'罰款']
-  adjustment [note:'修正']
+  kala [note:'卡拉碰']
+  eye [note:'眼牌']
 }
 
-Enum win_type {
-  ron [note:'胡牌']
-  tsumo [note:'自摸']
-  bao [note:'包牌']
-}
 /*
 Enum point_type {
   自摸
@@ -48,72 +45,113 @@ Enum point_type {
   MIGI
 }
 */
-Enum account_status {
-  ACTIVE
-  BANNED
-}
 
 // --- Tables ---
 Table users [note: '使用者/玩家'] {
-  id bigint [pk, increment]
-  public_id varchar [note:'公開,加好友可用']
-  name varchar [not null]
-  nickname varchar [null,note:'優先顯示此名稱']
-  avatar_url varchar [null,note:'大頭貼']
+  id bigint [pk]
+  public_id text [not null,note:'公開ID,加好友可用,可自定義']
+  nickname text [not null,default:'麻吉1x2c3v',note:'麻吉+英數字隨機']
+  gender int [null,note:'性別']
+  avatar_url text [null,note:'大頭貼']
+  is_valid boolean [default:false,note:'是否通過手機驗證,真人驗證']
+  is_public boolean [default:true,note:'是否公開個人資訊(性別...等等)']
   is_guest boolean [not null,default:true,note:'是否為訪客']
-  bio varchar [null,note:'簡介']
-  status account_status [note:'帳號狀態']
+  bio text [null,note:'簡介']
+  status int [note:'-1:benned 1:active']
+  updated_at timestamp [default:null,note:'用來紀錄update public ID的時間,不能頻繁異常publicID']
   created_at timestamp [default: `now()`]
   indexes {
     public_id [unique]
   }
 }
 
-Table user_identities [note:'使用者綁定資料 1-to-N'] {
-  id integer [pk]
-  user_id integer
-  identity_type varchar [note: 'phone, google, apple, meta']
-  identity_id varchar [note: ' unique id ']
-  email varchar [note: '如果是社群登入，這裡存對方的 email 備查']
-  created_at timestamp
+Table user_providers [note:'使用者綁定資料 1-to-N'] {
+  user_id bigint
+  provider_type text [not null,note: 'google, apple, meta ...']
+  provider_id text [not null,note: ' unique id ']
+  email text [null]
+  created_at timestamp [default: `now()`]
   last_login_at timestamp
   Indexes {
-    (identity_type, identity_id) [unique]
+    (provider_type, provider_id) [unique]
   }
 }
 
-//揪咖、牌局
-Table places [note: '場地'] {
+Table places [note: '場地(揪咖、牌局)'] {
   id bigint [pk, increment]
   user_id bigint
   name varchar
   location varchar [note:'粗略地址 e.g.台北101附近']
   zip_code varchar [note: '郵遞區號']
-  address varchar [note:'詳細地址 欲參加者批准後才能看見']
-  memo varchar [note:'簡述 e.g.內有貓咪']
+  address varchar [note:'詳細地址,參加者被批准進入後才能看見']
+  memo varchar [note:'簡述 e.g.內有狗/貓咪']
+  is_show boolean [default:false,note:'是否隱藏,影響[新增牌局]時選項']
 }
-//template、揪咖資訊、開局
-Table rules [note:'規則表(逐列式)'] {
+
+//揪咖、開局 的 資訊,(For 業務邏輯)
+Table rules [note:'規則表(寬表)'] {
   id bigint [pk, increment]
-  seq int [default:1,note:'pk,也可用來排序']
-  content varchar
+  play_type text [default:'TW16',note:'TW16:台灣16張,JP13:日本13張,HK13:香港13張']
   user_id bigint [null,note:'使用者自定義']
-  match_id bigint [null,note:'牌局的規則']
-  invite_id bigint [null,note:'揪咖的規則']
+  match_id bigint [null,note:'實際牌局的規則']
+  invite_id bigint [null,note:'揪咖資訊的規則']
+  is_serial_deal boolean [default:true,note:'是否啟用連莊台(2n+1)']
+  is_double_win boolean [default:true,note:'是否雙響']
+  is_triple_win boolean [default:false,note:'是否三響']
+  fake_ron_base int [default:1 ,note:'詐胡底']
+  fake_ron_point int [default:3 ,note:'詐胡台']
+  fake_ron_deal boolean [default:true,note:'閒家詐胡莊家是否連莊']
+  draw_deal boolean [default:true,note:'流局是否連莊']
+  venue_type int [default:3,note: '東的類型: 0:不收東 1:無上限 2:有上限(不補) 3:有上限(補)']
+  venue_times int [null,note: '每將東錢的次數 ,venue_type選2,3時必填 null for 無上限']
+  venue_fee int [default:0,note:'這裡填費用,不一定是台數,venue_type> 0 必填']
+  kala int [default:0,note:'卡拉碰,0:不啟用,預設1台']
+  eye int [default:1,note:'眼牌,0:不啟用,預設1台']
+  is_fold boolean [default:false,note:'是否啟用倍數,for 骰規']
+  add_base int [default:false,note:'是否啟用加底,0:不啟用']
+  match_mode int [default:0,note:'1:一般模式,2:比賽模式 ; 比賽模式:詐胡/卡拉碰/眼牌，最終結算時，僅扣分，其它人不加分']
+  checks {
+    `fake_ron_base >= 0` [name:'檢查詐胡底']
+    `fake_ron_point >= 0` [name:'檢查詐胡台']
+  }  
+}
+
+Table points_template [note:'台數表template'] {
+  id bigint [pk,increment]
+  user_id bigint
+  play_type text [note:'from codes.code_type=`play_type`']
+  name text [note:'自定義名稱,e.g.xx家']
+  created_at timestamp [default: `now()`]
   indexes {
-    (id,seq) [pk]
+    (user_id,play_type) [unique]
+    (user_id,name) [unique]
   }
 }
-//template、揪咖資訊、開局
-Table points [note:'台數表'] {
+//台數表template明細
+Table points_template_detail [note:'台數表template明細'] {
+  pt_id bigint
+  point_type text [note:'from codes.code_type=`point_type`']
+  point_code text [note:'from codes.code_type=`point_code`']
+  point int [default:1,note:'台數']
+  indexes {
+    (pt_id,point_code) [unique]
+  }
+}
+
+//揪咖資訊、開局
+Table points [note:'台數表,copy from points_template_detail'] {
   id bigint [pk,increment]
-  type varchar [note:'from codes.code_type=\'point\')']
-  point int
-  user_id bigint [null,note:'使用者自定義']
+  point_type text [note:'from codes.code_type=`point_type`']
+  point_code text [note:'from codes.code_type=`point_code`']
+  point int [default:1,note:'台數']
   match_id bigint [null,note:'牌局的台數表']
   invite_id bigint [null,note:'揪咖的台數表']
   indexes {
-    (id,type) [pk]
+    (match_id,point_code) [unique]
+    (invite_id,point_code) [unique]
+  }
+  checks {
+    `point > 0` [name:'檢查台數正數']
   }
 }
 
@@ -121,27 +159,19 @@ Table matches [note: '牌局'] {
   id bigint [pk, increment]
   user_id int [not null,note: '開局者/主揪']
   place_id bigint [not null]
-  rule_id bigint [not null]
-  point_id bigint [not null]
+  title text [not null,note:'牌局標題']
   match_date timestamp [default: `now()`]
   players int [default: 4,note:'P人麻將,可用來計風']
   base int [not null,note: '底']
   point int [not null,note: '台']
-  status int [default:0 ,note: '牌局狀態: 0:待開始,1:進行中,98:強制結束,99:結束']
-  is_double_win boolean [note:'是否雙響']
-  is_triple_win boolean [note:'是否三響']
-  eye_point int [default:0 ,note: '眼牌台數 0:沒有']
-  kala_point int [default:0 ,note: '卡拉碰台數 0:沒有']
-  venue_type int [note: '東的類型: 0:不收東 1:無上限 2:有上限(不補) 3:有上限(補)']
-  venue_times int [null,note: '每將東錢的次數 , null for 無上限']
-  venue_fee int [note: '每次東的費用']
+  status int [default:0 ,note: '牌局狀態: 0:準備開始,1:進行中,98:強制結束,99:結束']
   started_at timestamp
   ended_at timestamp
 }
 
-Table match_player [note: '牌局玩家']{
+Table match_players [note: '牌局玩家(要包含場主)']{
   match_id bigint
-  player_id bigint [note:'包含開局者']
+  player_id bigint [note:'包含場主 for 東錢']
   permission int [default: 0, note: '牌局權限']
   indexes {
     (match_id, player_id) [pk]
@@ -150,9 +180,9 @@ Table match_player [note: '牌局玩家']{
 
 Table match_venue [note:'東錢表,match prefix 是避免有將以外的東錢']{
   match_id bigint
-  round_id bigint [null,note:'其它費用,則為null']
+  round_id bigint [null,note:'哪一將發生的東錢 ; 其它費用,則為null']
   game_id bigint [null,note:'哪一把牌局產生的東錢']
-  payer_id bigint [note:'付款人通常為自摸者/胡牌者(補東)']
+  payer_id bigint [note:'付款人為自摸者/胡牌者(補東)']
   payee_id bigint [null,note:'收款人(場主id,null表示公基金)']
   amount int
 }
@@ -165,10 +195,11 @@ Table rounds [note: '將'] {
   ended_at timestamp [null]
 }
 
-Table round_player [note: '每將的玩家(但要包含場主)']{
+Table round_players [note: '每將玩家的位置']{
   round_id bigint
   player_id bigint
-  seat int [note: '1:東, 2:南 , 3:西 , 4:北 考慮到多人打一家,故不納入pk']
+  seat int [null,note: '1:東, 2:南 , 3:西 , 4:北 考慮到多人打一家,故不納入pk']
+  is_play boolean [default:true,note:'count(is_paly=true) 必須 = match.player']
   indexes {
     (round_id, player_id) [pk]
   }
@@ -179,14 +210,14 @@ Table games [note: '局'] {
   round_id bigint
   dealer_id int [note: '莊家']
   wind int [note: '風圈 (1:東, 2:南 , 3:西 , 4:北)']
-  wind_num int [note: '風位 (1:東, 2:南 , 3:西 , 4:北)']
-  continues int [default: 0, note: '連莊數']
+  wind_seat int [note: '風位 (1:東, 2:南 , 3:西 , 4:北)']
+  serials int [default: 0, note: '連莊數']
   end_type end_type [null, note:'null:進行中,有值:已結算']
   started_at timestamp [default:`now()`]
   ended_at timestamp [null]
 }
 
-Table game_record [note: '收付狀況,1-to-N'] {
+Table game_records [note: '收付狀況,1-to-N'] {
   id bigint [pk, increment]
   game_id bigint
   pay_reason pay_reason [note:'付款原因']
@@ -197,12 +228,8 @@ Table game_record [note: '收付狀況,1-to-N'] {
   fold int [default:1,note:'倍數,for 骰規']
   amount int
 }
-// 收益結算 = 收錢總額 - (付錢總額 - 場地費總額)
-// 正項：select sum(amount) from game_record groub by payee_id
-// 負項：select sum(amount) from game_record groub by payer_id
-// 負項：select sum(amount) from match_venue group by payer_id
 
-Table game_wins [note: '胡牌紀錄,1-to-1'] {
+Table game_wins [note: '胡牌紀錄1-to-N'] {
   id bigint [pk, increment]
   game_id bigint
   winner_id bigint [note: '自摸/胡牌者']
@@ -213,63 +240,52 @@ Table game_wins [note: '胡牌紀錄,1-to-1'] {
 
 Table game_wins_detail [note: '胡牌牌型明細'] {
   win_id bigint
-  point_type varchar
-  points int [note: '該牌型的台數']
+  point_code varchar
+  points int [note: '該牌型的台數,from points where match_id']
 }
 
-Table codes [note:'代碼檔'] {
-  code_type varchar [note:'wind,point']
-  code varchar
-  content varchar
-  created_at timestamp
+Table codes [note:'代碼檔(lookup table)'] {
+  code_type text [note:'point_code,play_type']
+  code text
+  content text
+  created_at timestamp [default:`now()`]
   indexes {
     (code_type,code) [pk]
   }
 }
 
-// Table Grouop
-TableGroup mj_matches  {
-  matches
-  rounds
-  games
-  game_record
-  game_wins
-  game_wins_detail
-}
-
-
 // --- Relationships ---
-Ref: users.id < user_identities.user_id
+Ref: users.id < user_providers.user_id
 
 Ref: users.id < matches.user_id
 
 Ref: users.id < places.user_id
 
+Ref: users.id < points_template.user_id
+
 Ref: places.id < matches.place_id 
 
 Ref: matches.id < rounds.match_id
 
-Ref: matches.id < match_player.match_id
+Ref: matches.id < match_players.match_id
 
-Ref: rounds.id < round_player.round_id
+Ref: rounds.id < round_players.round_id
 
-Ref: users.id < round_player.player_id 
+Ref: users.id < round_players.player_id 
 
-Ref: match_player.player_id - round_player.player_id
+Ref: match_players.player_id - round_players.player_id
 
 Ref: rounds.id < games.round_id 
 
 Ref: users.id < games.dealer_id
 
-Ref: games.id < game_record.game_id
+Ref: games.id < game_records.game_id
 
 Ref: games.id < game_wins.game_id
 
 Ref: game_wins.id < game_wins_detail.win_id
 
 Ref: users.id < rules.user_id
-
-Ref: users.id < points.user_id
 
 Ref: matches.id < rules.match_id
 
