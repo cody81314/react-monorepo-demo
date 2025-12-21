@@ -5,6 +5,11 @@ Project APP_JMJ {
   '''
 }
 
+Enum win_type {
+  tsumo [note:'自摸']
+  ron [note:'胡牌']
+}
+
 Enum end_type {
   tsumo [note:'自摸']
   ron [note:'胡牌']
@@ -21,30 +26,10 @@ Enum pay_reason {
   eye [note:'眼牌']
 }
 
-/*
-Enum point_type {
-  自摸
-  單吊
-  邊張
-  中洞
-  門清
-  槓上
-  平胡
-  花槓
-  不求
-  半求
-  全求
-  碰碰胡
-  三暗刻
-  四暗刻
-  五暗刻
-  小三元
-  大三元
-  小四喜
-  大四喜
-  MIGI
+Enum status {
+  banned
+  active
 }
-*/
 
 // --- Tables ---
 Table users [note: '使用者/玩家'] {
@@ -57,7 +42,7 @@ Table users [note: '使用者/玩家'] {
   is_public boolean [default:true,note:'是否公開個人資訊(性別...等等)']
   is_guest boolean [not null,default:true,note:'是否為訪客']
   bio text [null,note:'簡介']
-  status int [note:'-1:benned 1:active']
+  status status
   updated_at timestamp [default:null,note:'用來紀錄update public ID的時間,不能頻繁異常publicID']
   created_at timestamp [default: `now()`]
   indexes {
@@ -173,6 +158,9 @@ Table match_players [note: '牌局玩家(要包含場主)']{
   match_id bigint
   player_id bigint [note:'包含場主 for 東錢']
   permission int [default: 0, note: '牌局權限']
+  current_score int [note:'當前積分']
+  final_score int [note:'最終積分']
+  venue int [note:'收到的場地費']
   indexes {
     (match_id, player_id) [pk]
   }
@@ -212,7 +200,7 @@ Table games [note: '局'] {
   wind int [note: '風圈 (1:東, 2:南 , 3:西 , 4:北)']
   wind_seat int [note: '風位 (1:東, 2:南 , 3:西 , 4:北)']
   serials int [default: 0, note: '連莊數']
-  end_type end_type [null, note:'null:進行中,有值:已結算']
+  end_type end_type [null, note:'結束類型.裁判視角null:進行中,有值:已結算']
   started_at timestamp [default:`now()`]
   ended_at timestamp [null]
 }
@@ -229,7 +217,7 @@ Table game_records [note: '收付狀況,1-to-N'] {
   amount int
 }
 
-Table game_wins [note: '胡牌紀錄1-to-N'] {
+Table game_wins [note: '胡牌紀錄(贏家視角)'] {
   id bigint [pk, increment]
   game_id bigint
   winner_id bigint [note: '自摸/胡牌者']
