@@ -33,9 +33,9 @@ Enum status {
 
 // --- Tables ---
 Table users [note: '使用者/玩家'] {
-  id bigint [pk]
+  id bigint [pk,increment]
   public_id text [not null,note:'公開ID,加好友可用,可自定義']
-  nickname text [not null,default:'麻吉1x2c3v',note:'麻吉+英數字隨機']
+  nickname text [not null,note:'麻吉+英數字隨機']
   gender int [null,note:'性別']
   avatar_url text [null,note:'大頭貼']
   is_valid boolean [default:false,note:'是否通過手機驗證,真人驗證']
@@ -200,7 +200,7 @@ Table games [note: '局'] {
   wind int [note: '風圈 (1:東, 2:南 , 3:西 , 4:北)']
   wind_seat int [note: '風位 (1:東, 2:南 , 3:西 , 4:北)']
   serials int [default: 0, note: '連莊數']
-  end_type end_type [null, note:'結束類型.裁判視角null:進行中,有值:已結算']
+  end_type end_type [null, note:'結束類型.裁判視角lnull:進行中,有值:已結算']
   started_at timestamp [default:`now()`]
   ended_at timestamp [null]
 }
