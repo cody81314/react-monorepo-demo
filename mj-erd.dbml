@@ -62,15 +62,54 @@ Table user_providers [note:'使用者綁定資料 1-to-N'] {
   }
 }
 
+Table invites [note:'揪局'] {
+  id bigint [pk,increment]
+  user_id bigint [note:'主揪人/場主']
+  title text [note:'標題 e.g. 大安歡樂場']
+  base int [not null,note:'底']
+  point int [not null,note:'台']
+  rounds int [note:'預計將數']
+  play_type text [default:'TW16',note:'臺灣16張,預留欄位可先不顯示']
+  max_players int [not null,default:4,note:'玩家人數']
+  current_players int [default:1,note:'玩家人數,考慮到場主可揪人但不打']
+  started_at timestamp [not null,note:'開打時間,可選,此時間超過系統時間則不顯示']
+  place_id bigint [not null,note:'牌局資訊-地點']
+  rule_id bigint [not null,note:'牌局資訊-規則表']
+  point_id bigint [not null,note:'牌局資訊-台數表']
+  memo text [note:'備註 e.g.禁菸、禁帶人']
+  status int [default: 0, note: '0:缺人中(可以顯示max-currnet的字,e.g. 三缺一), 1:成局, 2:已轉成牌局(Match), 9:流局/取消']
+  created_at timestamp [default:`now()`,note:'建立日期']
+  checks { 
+    `rounds > 0` [name:'防呆']
+  }
+}
+
+Table invite_apply [note: '揪咖報名申請'] {
+  id bigint [pk, increment]
+  invite_id bigint [not null]
+  user_id bigint [not null, note: '申請者']
+  status int [default: 0, note: '報名狀態 => 0:待審核, 1:已核准, 2:已拒絕, 3:使用者自行取消']
+  message text [note: '申請留言 e.g. 我會晚5分鐘到 ']
+  host_comment text [note: '主揪回覆/拒絕理由']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp []
+  indexes {
+    (invite_id, user_id) [unique, note: '一人對一局只能報名一次']
+  }
+}
+
 Table places [note: '場地(揪咖、牌局)'] {
   id bigint [pk, increment]
-  user_id bigint
+  user_id bigint [note:'使用者定義,可以N組?']
   name varchar
   location varchar [note:'粗略地址 e.g.台北101附近']
   zip_code varchar [note: '郵遞區號']
   address varchar [note:'詳細地址,參加者被批准進入後才能看見']
   memo varchar [note:'簡述 e.g.內有狗/貓咪']
   is_show boolean [default:false,note:'是否隱藏,影響[新增牌局]時選項']
+  lng double [note:'經度']
+  lat double [note:'緯度']
+  google_place_id text [note:'google地點ID']
 }
 
 //揪咖、開局 的 資訊,(For 業務邏輯)
@@ -152,6 +191,12 @@ Table matches [note: '牌局'] {
   status int [default:0 ,note: '牌局狀態: 0:準備開始,1:進行中,98:強制結束,99:結束']
   started_at timestamp
   ended_at timestamp
+}
+
+Table match_entry [note:'牌局pin(牌局結束delete)']{
+  pin varchar(6) [pk,note:'PIN碼 隨機數字6碼']
+  match_id bigint
+  created_at timestamp [default:`now()`]
 }
 
 Table match_players [note: '牌局玩家(要包含場主)']{
@@ -251,9 +296,19 @@ Ref: users.id < places.user_id
 
 Ref: users.id < points_template.user_id
 
+Ref: users.id < invites.user_id
+
+Ref: places.id < invites.place_id
+
+Ref: invites.id < invite_apply.invite_id
+
+Ref: users.id < invite_apply.user_id
+
 Ref: places.id < matches.place_id 
 
 Ref: matches.id < rounds.match_id
+
+Ref: matches.id - match_entry.match_id
 
 Ref: matches.id < match_players.match_id
 
